@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background: #f8f8f8; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .cart { position: relative; cursor: pointer; }
+    .cart-count { background: red; color: #fff; border-radius: 50%; padding: 3px 7px; font-size: 12px; position: absolute; top: -8px; right: -10px; }
+
+    .container { padding: 20px; }
+    .product-img { text-align: center; margin-bottom: 20px; }
+    .product-img img { max-width: 100%; max-height: 300px; object-fit: contain; cursor: zoom-in; touch-action: manipulation; }
+
+    h2 { margin-bottom: 10px; }
+    p { margin-bottom: 10px; }
+
+    select, button, input { padding: 10px; margin: 5px 0; font-size: 1rem; }
+    .qty-controls { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+    .qty-btn { padding: 12px 16px; font-size: 1.2rem; background: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    .qty-btn:active { background: #0056b3; }
+
+    .add-btn { background: #28a745; color: #fff; border: none; border-radius: 6px; padding: 12px 18px; font-size: 1rem; cursor: pointer; }
+    .add-btn:active { background: #218838; }
+
+    /* Toast message */
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; display: none; }
+
+    @media (max-width: 600px) {
+      .qty-btn, .add-btn { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h2>MyStore</h2>
+  <div class="cart">🛒 <span id="cart-count" class="cart-count">0</span></div>
+</header>
+
+<div class="container">
+  <div class="product-img">
+    <img id="product-image" src="" alt="Product">
+  </div>
+  <h2 id="product-title"></h2>
+  <p id="product-desc"></p>
+  
+  <label for="variation">Choose Size:</label>
+  <select id="variation">
+    <option value="1">Small</option>
+    <option value="1.2">Medium (+20%)</option>
+    <option value="1.5">Large (+50%)</option>
+  </select>
+
+  <div class="qty-controls">
+    <button class="qty-btn" onclick="changeQty(-1)">−</button>
+    <input type="text" id="quantity" value="1" readonly style="width:50px; text-align:center;">
+    <button class="qty-btn" onclick="changeQty(1)">+</button>
+  </div>
+
+  <h3>Total: ₹<span id="total-price">0</span></h3>
+  <button class="add-btn" onclick="addToCart()">Add to Cart</button>
+</div>
+
+<div id="toast" class="toast">Added to cart ✅</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const productId = params.get("id");
+let basePrice = 0;
+let productData = {};
+
+function updateCartCount() {
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+  document.getElementById("cart-count").innerText = cart.length;
+}
+
+async function loadProduct() {
+  try {
+    const res = await fetch(`https://fakestoreapi.com/products/${productId}`);
+    const product = await res.json();
+    productData = product;
+    basePrice = Math.round(product.price * 82);
+
+    document.getElementById("product-image").src = product.image;
+    document.getElementById("product-title").innerText = product.title;
+    document.getElementById("product-desc").innerText = product.description;
+
+    recalcPrice();
+  } catch (err) {
+    document.querySelector(".container").innerHTML = "Failed to load product.";
+  }
+}
+
+function recalcPrice() {
+  const qty = parseInt(document.getElementById("quantity").value);
+  const variationFactor = parseFloat(document.getElementById("variation").value);
+  const total = Math.round(basePrice * qty * variationFactor);
+  document.getElementById("total-price").innerText = total;
+}
+
+function changeQty(delta) {
+  let qty = parseInt(document.getElementById("quantity").value);
+  qty += delta;
+  if (qty < 1) qty = 1;
+  if (qty > 10) qty = 10; // max 10 limit
+  document.getElementById("quantity").value = qty;
+  recalcPrice();
+}
+
+document.getElementById("variation").addEventListener("change", recalcPrice);
+
+function addToCart() {
+  const qty = parseInt(document.getElementById("quantity").value);
+  const variation = document.getElementById("variation").selectedOptions[0].text;
+  const total = document.getElementById("total-price").innerText;
+
+  let cart = JSON.parse(localStorage.getItem("cart")) || [];
+  cart.push({
+    id: productData.id,
+    title: productData.title,
+    variation,
+    qty,
+    total
+  });
+  localStorage.setItem("cart", JSON.stringify(cart));
+  
+  updateCartCount();
+  showToast();
+}
+
+function showToast() {
+  const toast = document.getElementById("toast");
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, 2000);
+}
+
+// Image zoom (tap to enlarge on mobile)
+document.getElementById("product-image").addEventListener("click", function() {
+  if (this.style.transform === "scale(2)") {
+    this.style.transform = "scale(1)";
+    this.style.cursor = "zoom-in";
+  } else {
+    this.style.transform = "scale(2)";
+    this.style.cursor = "zoom-out";
+  }
+});
+
+updateCartCount();
+loadProduct();
+</script>
+
+</body>
+</html>
